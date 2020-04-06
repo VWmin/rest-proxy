@@ -5,7 +5,7 @@
 
     <groupId>com.vwmin</groupId>
     <artifactId>rest-proxy</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <name>rest-proxy</name>
     <description>依赖于RestTemplate的注解式请求框架</description>
 

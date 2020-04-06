@@ -21,7 +21,7 @@ import java.util.Map;
  */
 public class RestRequestFactory {
 
-    private final UriComponentsBuilder uriComponentsBuilder;
+    private final String url;
     private final HttpMethod httpMethod;
     private final Annotation[] parameterAnnotations;
     private final Class<?> returnType;
@@ -31,10 +31,10 @@ public class RestRequestFactory {
         return new RestRequestFactoryBuilder(baseUrl, serviceMethod).build();
     }
 
-    RestRequestFactory(UriComponentsBuilder uriComponentsBuilder, HttpMethod httpMethod,
+    RestRequestFactory(String url, HttpMethod httpMethod,
                        Annotation[] parameterAnnotations,
                        Class<?> returnType, Method serviceMethod){
-        this.uriComponentsBuilder = uriComponentsBuilder;
+        this.url = url;
         this.httpMethod = httpMethod;
         this.parameterAnnotations = parameterAnnotations;
         this.returnType = returnType;
@@ -44,18 +44,21 @@ public class RestRequestFactory {
 
     public URI create(Object[] args) {
         Map<String, Object> uriVariables = new HashMap<>(args.length);
+        UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(url);
         for (int i=0; i<args.length; i++){
             Annotation annotation = parameterAnnotations[i];
             Object arg = args[i];
             if (annotation instanceof Query){
+                String queryName = ((Query) annotation).value();
                 if (arg == null){
                     if (((Query) annotation).required()){
-                        throw Utils.parameterError(serviceMethod, i, "不能为空的Query参数(%s)！", ((Query) annotation).value());
+                        throw Utils.parameterError(serviceMethod, i, "不能为空的Query参数(%s)！", queryName);
                     }else {
                         continue;
                     }
                 }
-                uriVariables.put(((Query) annotation).value(), arg);
+                uriVariables.put(queryName, arg);
+                uriComponentsBuilder.query(String.format("%s={%s}", queryName, queryName));
             }
 
         }

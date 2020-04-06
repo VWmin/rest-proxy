@@ -3,14 +3,10 @@ package com.vwmin.restproxy;
 import com.vwmin.restproxy.annotations.GET;
 import com.vwmin.restproxy.annotations.Query;
 import org.springframework.http.HttpMethod;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 
@@ -28,16 +24,13 @@ public class RestRequestFactoryBuilder {
 
     /** URI 参数*/
     private final String baseUrl;
+    private String url;
     private HttpMethod httpMethod = null;
-    private UriComponentsBuilder uriComponentsBuilder;
     private Annotation[] parameterAnnotations;
-    private List<String> queries = new ArrayList<>();
 
     /** URI 正则*/
     private static final Pattern QUERY_PARAM_PATTERN = Pattern.compile("([^&=]+)(=?)([^&]+)?");
     private static final Pattern QUERY_PATTERN = Pattern.compile("(\\?([^#]*))?");
-
-
 
 
     public RestRequestFactoryBuilder(final String baseUrl, final Method serviceMethod){
@@ -63,7 +56,7 @@ public class RestRequestFactoryBuilder {
         parseMethodAnnotations(methodAnnotations);
 
         return new RestRequestFactory(
-                uriComponentsBuilder,
+                url,
                 httpMethod,
                 parameterAnnotations,
                 serviceMethod.getReturnType(),
@@ -75,7 +68,7 @@ public class RestRequestFactoryBuilder {
     private void parseMethodAnnotations(Annotation[] annotations) {
         for (Annotation annotation : annotations){
             if (annotation instanceof GET){
-                setHttpMethodAndRelativePath(HttpMethod.GET, ((GET) annotation).value());
+                setHttpMethodAndUrl(HttpMethod.GET, ((GET) annotation).value());
             }
             // TODO: 2020/4/6 添加对其它HTTP方法的支持
         }
@@ -95,8 +88,6 @@ public class RestRequestFactoryBuilder {
         for (Annotation annotation : annotations){
             Annotation get = null;
             if (annotation instanceof Query){
-                // FIXME: 2020/4/6 这里如果Query是第二个出现的，那么会产生冲突
-                queries.add(((Query) annotation).value());
                 get = annotation;
             }// TODO: 2020/4/6 添加对其它参数形式的支持
 
@@ -114,34 +105,15 @@ public class RestRequestFactoryBuilder {
         return result;
     }
 
-    private void setHttpMethodAndRelativePath(HttpMethod httpMethod, String relativePath) {
+    private void setHttpMethodAndUrl(HttpMethod httpMethod, String relativePath) {
         if (this.httpMethod != null){
             throw Utils.methodError(serviceMethod,
                     "只允许有一个HTTP方法注解，收到%s，已存在%s.", httpMethod.name(), this.httpMethod.name());
         }
-        this.httpMethod = httpMethod;
-        this.uriComponentsBuilder = parseQueryParam(relativePath);
-    }
-
-    private UriComponentsBuilder parseQueryParam(String relativePath) {
         Utils.notNull(serviceMethod, relativePath, "相对路径不能为空");
-        UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(baseUrl+relativePath);
-        for (String queryName : queries){
-            uriComponentsBuilder.query(String.format("%s={%s}", queryName, queryName));
-        }
-        return uriComponentsBuilder;
-    }
 
-    private void query(String query){
-        if (query != null){
-            Matcher matcher = QUERY_PARAM_PATTERN.matcher(query);
-            while (matcher.find()) {
-                String name = matcher.group(1);
-                String eq = matcher.group(2);
-                String value = matcher.group(3);
-            }
-        }
+        this.httpMethod = httpMethod;
+        this.url = baseUrl + relativePath;
     }
-
 
 }
