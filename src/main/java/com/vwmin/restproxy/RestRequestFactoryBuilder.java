@@ -1,6 +1,8 @@
 package com.vwmin.restproxy;
 
+import com.vwmin.restproxy.annotations.Body;
 import com.vwmin.restproxy.annotations.GET;
+import com.vwmin.restproxy.annotations.POST;
 import com.vwmin.restproxy.annotations.Query;
 import org.springframework.http.HttpMethod;
 
@@ -31,6 +33,10 @@ public class RestRequestFactoryBuilder {
     /** URI 正则*/
     private static final Pattern QUERY_PARAM_PATTERN = Pattern.compile("([^&=]+)(=?)([^&]+)?");
     private static final Pattern QUERY_PATTERN = Pattern.compile("(\\?([^#]*))?");
+
+
+    /** 请求参数控制*/
+    private boolean gotBody = false;
 
 
     public RestRequestFactoryBuilder(final String baseUrl, final Method serviceMethod){
@@ -69,6 +75,8 @@ public class RestRequestFactoryBuilder {
         for (Annotation annotation : annotations){
             if (annotation instanceof GET){
                 setHttpMethodAndUrl(HttpMethod.GET, ((GET) annotation).value());
+            }else if (annotation instanceof POST){
+                setHttpMethodAndUrl(HttpMethod.POST, ((POST) annotation).value());
             }
             // TODO: 2020/4/6 添加对其它HTTP方法的支持
         }
@@ -89,7 +97,17 @@ public class RestRequestFactoryBuilder {
             Annotation get = null;
             if (annotation instanceof Query){
                 get = annotation;
-            }// TODO: 2020/4/6 添加对其它参数形式的支持
+            }else if (annotation instanceof Body){
+                if (gotBody){
+                    //todo 不知道是不是该这样
+                    throw Utils.parameterError(serviceMethod, index, "只允许有一个@Body参数");
+                }
+                get = annotation;
+                gotBody = true;
+            }
+
+
+            // TODO: 2020/4/6 添加对其它参数形式的支持
 
 
             if (get == null){
@@ -99,7 +117,7 @@ public class RestRequestFactoryBuilder {
             if (result == null){
                 result = get;
             }else {
-                throw Utils.parameterError(serviceMethod, index, "只允许有一个HTTP参数注解，收到%s，已存在%s", get, annotation);
+                throw Utils.parameterError(serviceMethod, index, "一个参数只允许有一个HTTP参数注解，收到%s，已存在%s", get, annotation);
             }
         }
         return result;

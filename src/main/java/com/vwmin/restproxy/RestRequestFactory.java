@@ -1,5 +1,6 @@
 package com.vwmin.restproxy;
 
+import com.vwmin.restproxy.annotations.Body;
 import com.vwmin.restproxy.annotations.Query;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.client.HttpMessageConverterExtractor;
@@ -26,6 +27,7 @@ public class RestRequestFactory {
     private final Annotation[] parameterAnnotations;
     private final Class<?> returnType;
     private final Method serviceMethod;
+    private Object requestBody;
 
     public static RestRequestFactory parseAnnotations(String baseUrl, Method serviceMethod) {
         return new RestRequestFactoryBuilder(baseUrl, serviceMethod).build();
@@ -48,6 +50,8 @@ public class RestRequestFactory {
         for (int i=0; i<args.length; i++){
             Annotation annotation = parameterAnnotations[i];
             Object arg = args[i];
+
+            //Query
             if (annotation instanceof Query){
                 String queryName = ((Query) annotation).value();
                 if (arg == null){
@@ -61,6 +65,19 @@ public class RestRequestFactory {
                 uriComponentsBuilder.query(String.format("%s={%s}", queryName, queryName));
             }
 
+            //Body
+            else if (annotation instanceof Body){
+                String queryName = ((Body) annotation).value();
+                if (arg == null){
+                    if (((Body) annotation).required()){
+                        throw Utils.parameterError(serviceMethod, i, "不能为空的Body参数(%s)！", queryName);
+                    }else {
+                        continue;
+                    }
+                }
+                this.requestBody = arg;
+            }
+
         }
         return uriComponentsBuilder.buildAndExpand(uriVariables).toUri();
     }
@@ -70,7 +87,15 @@ public class RestRequestFactory {
     }
 
     public RequestCallback requestCallback(RestTemplate restTemplate) {
-        return restTemplate.acceptHeaderRequestCallback(returnType);
+        switch (httpMethod){
+            case GET:
+                return restTemplate.acceptHeaderRequestCallback(returnType);
+            case POST:
+                return restTemplate.httpEntityCallback(requestBody, returnType);
+            default:
+                return restTemplate.acceptHeaderRequestCallback(returnType);
+
+        }
     }
 
     public <T> ResponseExtractor<T> responseExtractor(RestTemplate restTemplate) {
