@@ -8,14 +8,9 @@ import java.lang.annotation.Target;
 /**
  * @author vwmin
  * @version 1.0
- * @date 2020/4/7 12:05
+ * @date 2020/4/16 22:31
  */
-@Target(ElementType.PARAMETER)
+@Target(ElementType.METHOD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Body {
-    /**
-     * Body参数的name，实际并未参与到请求中
-     */
-    String value() default "";
-    boolean required() default true;
+public @interface LogRequest {
 }

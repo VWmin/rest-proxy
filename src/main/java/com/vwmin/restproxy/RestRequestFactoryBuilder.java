@@ -1,9 +1,6 @@
 package com.vwmin.restproxy;
 
-import com.vwmin.restproxy.annotations.Body;
-import com.vwmin.restproxy.annotations.GET;
-import com.vwmin.restproxy.annotations.POST;
-import com.vwmin.restproxy.annotations.Query;
+import com.vwmin.restproxy.annotations.*;
 import org.springframework.http.HttpMethod;
 
 import java.lang.annotation.Annotation;
@@ -38,6 +35,9 @@ public class RestRequestFactoryBuilder {
     /** 请求参数控制*/
     private boolean gotBody = false;
 
+    /** 额外的功能标记 */
+    private boolean logRequest = false;
+
 
     public RestRequestFactoryBuilder(final String baseUrl, final Method serviceMethod){
         this.baseUrl = baseUrl;
@@ -61,7 +61,7 @@ public class RestRequestFactoryBuilder {
         // 解析方法注解中的HTTP注解
         parseMethodAnnotations(methodAnnotations);
 
-        return new RestRequestFactory(
+        RestRequestFactory factory = new RestRequestFactory(
                 url,
                 httpMethod,
                 parameterAnnotations,
@@ -69,6 +69,11 @@ public class RestRequestFactoryBuilder {
                 serviceMethod
         );
 
+        if (logRequest) {
+            factory.setLogRequest(true);
+        }
+
+        return factory;
     }
 
     private void parseMethodAnnotations(Annotation[] annotations) {
@@ -77,6 +82,8 @@ public class RestRequestFactoryBuilder {
                 setHttpMethodAndUrl(HttpMethod.GET, ((GET) annotation).value());
             }else if (annotation instanceof POST){
                 setHttpMethodAndUrl(HttpMethod.POST, ((POST) annotation).value());
+            }else if (annotation instanceof LogRequest){
+                logRequest = true;
             }
             // TODO: 2020/4/6 添加对其它HTTP方法的支持
         }

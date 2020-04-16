@@ -2,6 +2,9 @@ package com.vwmin.restproxy;
 
 import com.vwmin.restproxy.annotations.Body;
 import com.vwmin.restproxy.annotations.Query;
+import jdk.nashorn.internal.objects.annotations.Getter;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.client.HttpMessageConverterExtractor;
 import org.springframework.web.client.RequestCallback;
@@ -14,6 +17,7 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Logger;
 
 /**
  * @author vwmin
@@ -22,12 +26,16 @@ import java.util.Map;
  */
 public class RestRequestFactory {
 
+    private static final Log logger = LogFactory.getLog(RestRequestFactory.class);
+
     private final String url;
     private final HttpMethod httpMethod;
     private final Annotation[] parameterAnnotations;
     private final Class<?> returnType;
     private final Method serviceMethod;
     private Object requestBody;
+
+    private boolean logRequest = false;
 
     public static RestRequestFactory parseAnnotations(String baseUrl, Method serviceMethod) {
         return new RestRequestFactoryBuilder(baseUrl, serviceMethod).build();
@@ -79,7 +87,14 @@ public class RestRequestFactory {
             }
 
         }
-        return uriComponentsBuilder.buildAndExpand(uriVariables).toUri();
+
+        URI uri = uriComponentsBuilder.buildAndExpand(uriVariables).toUri();
+
+        if (logRequest){
+            logger.info("going to request >>> " + uri.toString());
+        }
+
+        return uri;
     }
 
     public HttpMethod getHttpMethod() {
@@ -102,4 +117,7 @@ public class RestRequestFactory {
         return new HttpMessageConverterExtractor<T>(returnType, restTemplate.getMessageConverters());
     }
 
+    public void setLogRequest(boolean logRequest) {
+        this.logRequest = logRequest;
+    }
 }
