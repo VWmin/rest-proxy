@@ -1,10 +1,13 @@
 package com.vwmin.restproxy;
 
 import com.vwmin.restproxy.annotations.Body;
+import com.vwmin.restproxy.annotations.Path;
 import com.vwmin.restproxy.annotations.Query;
 import jdk.nashorn.internal.objects.annotations.Getter;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.client.HttpMessageConverterExtractor;
 import org.springframework.web.client.RequestCallback;
@@ -34,6 +37,7 @@ public class RestRequestFactory {
     private final Class<?> returnType;
     private final Method serviceMethod;
     private Object requestBody;
+    private final HttpHeaders headers;
 
     private boolean logRequest = false;
 
@@ -41,14 +45,20 @@ public class RestRequestFactory {
         return new RestRequestFactoryBuilder(baseUrl, serviceMethod).build();
     }
 
-    RestRequestFactory(String url, HttpMethod httpMethod,
-                       Annotation[] parameterAnnotations,
-                       Class<?> returnType, Method serviceMethod){
+    RestRequestFactory(
+            String url,
+            HttpMethod httpMethod,
+            Annotation[] parameterAnnotations,
+            Class<?> returnType,
+            Method serviceMethod,
+            HttpHeaders headers
+    ){
         this.url = url;
         this.httpMethod = httpMethod;
         this.parameterAnnotations = parameterAnnotations;
         this.returnType = returnType;
         this.serviceMethod = serviceMethod;
+        this.headers = headers;
     }
 
 
@@ -73,6 +83,15 @@ public class RestRequestFactory {
                 uriComponentsBuilder.query(String.format("%s={%s}", queryName, queryName));
             }
 
+            //Path
+            else if (annotation instanceof Path){
+                String paramName = ((Path) annotation).value();
+                if (arg == null){
+                    throw Utils.parameterError(serviceMethod, i, "Path参数(%s)不能为空！", paramName);
+                }
+                uriVariables.put(paramName, arg);
+            }
+
             //Body
             else if (annotation instanceof Body){
                 String queryName = ((Body) annotation).value();
@@ -88,7 +107,8 @@ public class RestRequestFactory {
 
         }
 
-        URI uri = uriComponentsBuilder.buildAndExpand(uriVariables).toUri();
+
+        URI uri = uriComponentsBuilder.build(uriVariables);
 
         if (logRequest){
             logger.info("going to request >>> " + uri.toString());
@@ -106,7 +126,7 @@ public class RestRequestFactory {
             case GET:
                 return restTemplate.acceptHeaderRequestCallback(returnType);
             case POST:
-                return restTemplate.httpEntityCallback(requestBody, returnType);
+                return restTemplate.httpEntityCallback(new HttpEntity<>(requestBody, headers), returnType);
             default:
                 return restTemplate.acceptHeaderRequestCallback(returnType);
 

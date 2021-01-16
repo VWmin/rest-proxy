@@ -51,8 +51,4 @@ public class RestProxy<API> {
         return args != null ? args : new Object[0];
     }
 
-    @Override
-    public String toString() {
-        return super.toString();
-    }
 }

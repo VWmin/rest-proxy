@@ -1,6 +1,7 @@
 package com.vwmin.restproxy;
 
 import com.vwmin.restproxy.annotations.*;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 
 import java.lang.annotation.Annotation;
@@ -25,7 +26,6 @@ public class RestRequestFactoryBuilder {
     private final String baseUrl;
     private String url;
     private HttpMethod httpMethod = null;
-    private Annotation[] parameterAnnotations;
 
     /** URI 正则*/
     private static final Pattern QUERY_PARAM_PATTERN = Pattern.compile("([^&=]+)(=?)([^&]+)?");
@@ -38,6 +38,8 @@ public class RestRequestFactoryBuilder {
     /** 额外的功能标记 */
     private boolean logRequest = false;
 
+    private HttpHeaders headers;
+
 
     public RestRequestFactoryBuilder(final String baseUrl, final Method serviceMethod){
         this.baseUrl = baseUrl;
@@ -45,20 +47,21 @@ public class RestRequestFactoryBuilder {
         this.methodAnnotations = serviceMethod.getAnnotations();
         this.parameterAnnotationsArray = serviceMethod.getParameterAnnotations();
         this.parameterTypes = serviceMethod.getGenericParameterTypes();
+        this.headers = new HttpHeaders();
 
     }
 
 
     public RestRequestFactory build() {
 
-        //解析参数注解中的HTTP注解
+        // 解析参数注解中的HTTP注解，主要是Query、Body等参数
         int paramCnt = parameterAnnotationsArray.length;
-        parameterAnnotations = new Annotation[paramCnt];
+        Annotation[] parameterAnnotations = new Annotation[paramCnt];
         for(int i=0; i<paramCnt; i++){
             parameterAnnotations[i] = parseParameterAnnotations(i, parameterAnnotationsArray[i]);
         }
 
-        // 解析方法注解中的HTTP注解
+        // 解析方法注解中的HTTP注解、主要是GET、POST等参数
         parseMethodAnnotations(methodAnnotations);
 
         RestRequestFactory factory = new RestRequestFactory(
@@ -66,7 +69,8 @@ public class RestRequestFactoryBuilder {
                 httpMethod,
                 parameterAnnotations,
                 serviceMethod.getReturnType(),
-                serviceMethod
+                serviceMethod,
+                headers
         );
 
         if (logRequest) {
@@ -82,8 +86,15 @@ public class RestRequestFactoryBuilder {
                 setHttpMethodAndUrl(HttpMethod.GET, ((GET) annotation).value());
             }else if (annotation instanceof POST){
                 setHttpMethodAndUrl(HttpMethod.POST, ((POST) annotation).value());
-            }else if (annotation instanceof LogRequest){
+            }else if (annotation instanceof LogRequest){ //标记该方法是否需要打印请求日志
                 logRequest = true;
+            }else if (annotation instanceof Headers){
+                for( Header header : ((Headers) annotation).headers() ){
+                    headers.add(header.k(), header.v());
+                }
+            }else if (annotation instanceof Header){
+                Header header = (Header) annotation;
+                headers.add(header.k(), header.v());
             }
             // TODO: 2020/4/6 添加对其它HTTP方法的支持
         }
@@ -102,7 +113,7 @@ public class RestRequestFactoryBuilder {
         Annotation result = null;
         for (Annotation annotation : annotations){
             Annotation get = null;
-            if (annotation instanceof Query){
+            if (annotation instanceof Query || annotation instanceof Path){
                 get = annotation;
             }else if (annotation instanceof Body){
                 if (gotBody){
