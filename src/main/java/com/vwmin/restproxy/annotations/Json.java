@@ -8,11 +8,14 @@ import java.lang.annotation.Target;
 /**
  * @author vwmin
  * @version 1.0
- * @date 2021/1/31 18:17
+ * @date 2020/4/7 12:05
  */
 @Target(ElementType.PARAMETER)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface Body{
-    String value();
+public @interface Json {
+    /**
+     * Json参数的name，实际并未参与到请求中
+     */
+    String value() default "";
     boolean required() default true;
 }

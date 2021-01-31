@@ -3,6 +3,7 @@ package com.vwmin.restproxy;
 import com.vwmin.restproxy.annotations.*;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
@@ -33,6 +34,7 @@ public class RestRequestFactoryBuilder {
 
 
     /** 请求参数控制*/
+    private boolean gotJson = false;
     private boolean gotBody = false;
 
     /** 额外的功能标记 */
@@ -63,6 +65,13 @@ public class RestRequestFactoryBuilder {
 
         // 解析方法注解中的HTTP注解、主要是GET、POST等参数
         parseMethodAnnotations(methodAnnotations);
+
+        //通过已知的参数类型，设置header的content-type
+        if (gotBody){
+            headers.add("content-type", MediaType.APPLICATION_FORM_URLENCODED_VALUE);
+        }else if (gotJson){
+            headers.add("content-type", MediaType.APPLICATION_JSON_VALUE);
+        }
 
         RestRequestFactory factory = new RestRequestFactory(
                 url,
@@ -112,23 +121,26 @@ public class RestRequestFactoryBuilder {
     private Annotation parseParameterAnnotations(int index, Annotation[] annotations) {
         Annotation result = null;
         for (Annotation annotation : annotations){
-            Annotation get = null;
+            Annotation get;
+            //筛选出参数注解中的HTTP注解
             if (annotation instanceof Query || annotation instanceof Path){
                 get = annotation;
-            }else if (annotation instanceof Body){
+            }else if (annotation instanceof Json){
+                if (gotJson){
+                    throw Utils.parameterError(serviceMethod, index, "只允许有一个@Json参数");
+                }
                 if (gotBody){
-                    //todo 不知道是不是该这样
-                    throw Utils.parameterError(serviceMethod, index, "只允许有一个@Body参数");
+                    throw Utils.parameterError(serviceMethod, index, "不能与@Body参数同时存在");
+                }
+                get = annotation;
+                gotJson = true;
+            }else if (annotation instanceof Body){
+                if (gotJson){
+                    throw Utils.parameterError(serviceMethod, index, "不能与@Json参数同时存在");
                 }
                 get = annotation;
                 gotBody = true;
-            }
-
-
-            // TODO: 2020/4/6 添加对其它参数形式的支持
-
-
-            if (get == null){
+            }else{ // TODO: 2020/4/6 添加对其它参数形式的支持
                 continue;
             }
 

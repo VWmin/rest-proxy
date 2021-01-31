@@ -1,14 +1,16 @@
 package com.vwmin.restproxy;
 
 import com.vwmin.restproxy.annotations.Body;
+import com.vwmin.restproxy.annotations.Json;
 import com.vwmin.restproxy.annotations.Path;
 import com.vwmin.restproxy.annotations.Query;
-import jdk.nashorn.internal.objects.annotations.Getter;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.HttpMessageConverterExtractor;
 import org.springframework.web.client.RequestCallback;
 import org.springframework.web.client.ResponseExtractor;
@@ -20,7 +22,6 @@ import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Logger;
 
 /**
  * @author vwmin
@@ -36,7 +37,7 @@ public class RestRequestFactory {
     private final Annotation[] parameterAnnotations;
     private final Class<?> returnType;
     private final Method serviceMethod;
-    private Object requestBody;
+    private Object requestEntity;
     private final HttpHeaders headers;
 
     private boolean logRequest = false;
@@ -63,8 +64,14 @@ public class RestRequestFactory {
 
 
     public URI create(Object[] args) {
+        //为Query服务
         Map<String, Object> uriVariables = new HashMap<>(args.length);
         UriComponentsBuilder uriComponentsBuilder = UriComponentsBuilder.fromUriString(url);
+
+        //为Body服务
+        MultiValueMap<String, Object> bodies = new LinkedMultiValueMap<>();
+
+
         for (int i=0; i<args.length; i++){
             Annotation annotation = parameterAnnotations[i];
             Object arg = args[i];
@@ -92,17 +99,31 @@ public class RestRequestFactory {
                 uriVariables.put(paramName, arg);
             }
 
-            //Body
-            else if (annotation instanceof Body){
-                String queryName = ((Body) annotation).value();
+            //Json application/json
+            else if (annotation instanceof Json){
+                String queryName = ((Json) annotation).value();
                 if (arg == null){
-                    if (((Body) annotation).required()){
-                        throw Utils.parameterError(serviceMethod, i, "不能为空的Body参数(%s)！", queryName);
+                    if (((Json) annotation).required()){
+                        throw Utils.parameterError(serviceMethod, i, "不能为空的Json参数(%s)！", queryName);
                     }else {
                         continue;
                     }
                 }
-                this.requestBody = arg;
+                this.requestEntity = arg;
+            }
+
+            //Body  与Json冲突  application/x-www-form-urlencoded
+            else if (annotation instanceof Body){
+                String paramName = ((Body) annotation).value();
+                if (arg == null){
+                    if (((Body) annotation).required()){
+                        throw Utils.parameterError(serviceMethod, i, "不能为空的Body参数(%s)！", paramName);
+                    }else {
+                        continue;
+                    }
+                }
+                bodies.add(paramName, arg);
+                this.requestEntity = bodies;
             }
 
         }
@@ -126,7 +147,7 @@ public class RestRequestFactory {
             case GET:
                 return restTemplate.acceptHeaderRequestCallback(returnType);
             case POST:
-                return restTemplate.httpEntityCallback(new HttpEntity<>(requestBody, headers), returnType);
+                return restTemplate.httpEntityCallback(new HttpEntity<>(requestEntity, headers), returnType);
             default:
                 return restTemplate.acceptHeaderRequestCallback(returnType);
 
