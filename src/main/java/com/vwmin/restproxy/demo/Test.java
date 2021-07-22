@@ -1,8 +1,7 @@
 package com.vwmin.restproxy.demo;
 
 import com.vwmin.restproxy.RestProxy;
-import com.vwmin.restproxy.annotations.Body;
-import com.vwmin.restproxy.annotations.Json;
+import com.vwmin.restproxy.annotations.Field;
 import com.vwmin.restproxy.annotations.POST;
 import org.springframework.web.client.RestTemplate;
 
@@ -20,7 +19,7 @@ public class Test {
     }
     interface TestApi{
         @POST("/person")
-        String post(@Body("name") String name, @Body("age") int age);
+        String post(@Field("name") String name, @Field("age") int age);
     }
 
     public static void main(String[] args) {

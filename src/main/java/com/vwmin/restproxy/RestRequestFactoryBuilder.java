@@ -134,13 +134,19 @@ public class RestRequestFactoryBuilder {
                 }
                 get = annotation;
                 gotJson = true;
-            }else if (annotation instanceof Body){
+            }else if (annotation instanceof Field){
                 if (gotJson){
                     throw Utils.parameterError(serviceMethod, index, "不能与@Json参数同时存在");
                 }
                 get = annotation;
                 gotBody = true;
-            }else{ // TODO: 2020/4/6 添加对其它参数形式的支持
+            }else if (annotation instanceof Body) {
+                if (gotJson){
+                    throw Utils.parameterError(serviceMethod, index, "不能与@Json参数同时存在");
+                }
+                get = annotation;
+                gotBody = true;
+            }else { // TODO: 2020/4/6 添加对其它参数形式的支持
                 continue;
             }
 

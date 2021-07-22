@@ -1,9 +1,6 @@
 package com.vwmin.restproxy;
 
-import com.vwmin.restproxy.annotations.Body;
-import com.vwmin.restproxy.annotations.Json;
-import com.vwmin.restproxy.annotations.Path;
-import com.vwmin.restproxy.annotations.Query;
+import com.vwmin.restproxy.annotations.*;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.http.HttpEntity;
@@ -112,17 +109,31 @@ public class RestRequestFactory {
                 this.requestEntity = arg;
             }
 
-            //Body  与Json冲突  application/x-www-form-urlencoded
-            else if (annotation instanceof Body){
-                String paramName = ((Body) annotation).value();
+            //PostParam  与Json冲突  application/x-www-form-urlencoded
+            else if (annotation instanceof Field){
+                String paramName = ((Field) annotation).value();
                 if (arg == null){
-                    if (((Body) annotation).required()){
-                        throw Utils.parameterError(serviceMethod, i, "不能为空的Body参数(%s)！", paramName);
+                    if (((Field) annotation).required()){
+                        throw Utils.parameterError(serviceMethod, i, "不能为空的PostParam参数(%s)！", paramName);
                     }else {
                         continue;
                     }
                 }
                 bodies.add(paramName, arg);
+                this.requestEntity = bodies;
+            }
+
+            //Body  与Json冲突  application/x-www-form-urlencoded
+            else if (annotation instanceof Body){
+                if (arg == null && ((Body) annotation).required()){
+                    throw Utils.parameterError(serviceMethod, i, "不能为空的Body参数!");
+                }
+                if (arg instanceof Map) {
+                    ((Map<?, ?>) arg).forEach((k, v) -> bodies.add(k.toString(), v));
+                } else {
+                    // 如果传入参数不属于map类型，对于post提交表单的方式来说，显然是错误的函数定义
+                    throw Utils.parameterError(serviceMethod, i, "@Body 需要配合Map使用");
+                }
                 this.requestEntity = bodies;
             }
 
@@ -132,7 +143,7 @@ public class RestRequestFactory {
         URI uri = uriComponentsBuilder.build(uriVariables);
 
         if (logRequest){
-            logger.info("going to request >>> " + uri.toString());
+            logger.info("going to request >>> " + uri);
         }
 
         return uri;
