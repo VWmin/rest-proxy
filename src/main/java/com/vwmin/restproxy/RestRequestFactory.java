@@ -154,10 +154,10 @@ public class RestRequestFactory {
     }
 
     public RequestCallback requestCallback(RestTemplate restTemplate) {
-        switch (httpMethod){
-            case GET:
+        switch (httpMethod.name()){
+            case "GET":
                 return restTemplate.acceptHeaderRequestCallback(returnType);
-            case POST:
+            case "POST":
                 return restTemplate.httpEntityCallback(new HttpEntity<>(requestEntity, headers), returnType);
             default:
                 return restTemplate.acceptHeaderRequestCallback(returnType);
